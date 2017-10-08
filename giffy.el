@@ -1,4 +1,4 @@
-;;; giffy.el --- creating GIF animations
+;;; giffy.el --- creating GIF animations -*- lexical-binding: t -*-
 ;; Copyright (C) 2017 Lars Magne Ingebrigtsen
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
@@ -25,6 +25,8 @@
 
 ;;; Code:
 
+;; (giffy "/var/tmp/screenshots/Witness for the Prosecution/" "anim02")
+
 (require 'cl)
 
 (defvar giffy-animation-delay 40)
@@ -47,7 +49,7 @@
 	giffy-start 0
 	giffy-end (1- (length giffy-file-list))
 	giffy-timestamp (float-time))
-  (giffy-display))
+  (giffy-display (current-buffer)))
 
 (defvar giffy-mode-map
   (let ((map (make-keymap)))
@@ -81,43 +83,52 @@
   (setq-local giffy-direction 'forward)
   (setq-local giffy-reverse-back nil))
 
-(defun giffy-display ()
-  (erase-buffer)
-  (insert-image (create-image (expand-file-name
-			       (elt giffy-file-list giffy-index))))
-  (insert "\n\n")
-  (insert "Start: %d  Stop: %d  Skip: %d  Delay: %d  Mode: %s\n"
-	  giffy-start
-	  (- (length giffy-file-list) giffy-end)
-	  giffy-skip
-	  giffy-animation-delay
-	  (if giffy-reverse-back
-	      'fold
-	    'restart))
-  (unless giffy-paused
-    (if (eq giffy-direction 'forward)
-	(progn
-	  (incf giffy-index (1+ giffy-skip))
-	  (when (> giffy-index giffy-end)
-	    (if giffy-reverse-back
-		(setq giffy-direction 'backward
-		      giffy-index (1- giffy-end))
-	      (setq giffy-index giffy-start))))
-      (decf giffy-index (1+ giffy-skip))
-      (when (< giffy-index giffy-start)
-	(setq giffy-direction 'forward
-	      giffy-index (1+ giffy-start))))
-    (let ((delay (- (float-time) giffy-timestamp)))
-      (setq giffy-timestamp (float-time))
-      (run-at-time (max 0.001 (- (/ giffy-delay 1000) delay))
-		   nil giffy-display))))
+(defun giffy-display (buffer)
+  (when (buffer-live-p buffer)
+    (with-current-buffer buffer
+      (let ((inhibit-read-only t))
+	(erase-buffer)
+	(insert-image (create-image (expand-file-name
+				     (elt giffy-file-list giffy-index))))
+	(insert "\n\n")
+	(insert (format
+		 "Start: %d  Stop: %d  Skip: %d  Delay: %d  Mode: %s\nIndex: %d\n"
+		 giffy-start
+		 (- (length giffy-file-list) giffy-end)
+		 giffy-skip
+		 giffy-animation-delay
+		 (if giffy-reverse-back
+		     'fold
+		   'restart)
+		 giffy-index))
+	(goto-char (point-min))
+	(end-of-line)
+	(unless giffy-paused
+	  (if (eq giffy-direction 'forward)
+	      (progn
+		(incf giffy-index (1+ giffy-skip))
+		(when (> giffy-index giffy-end)
+		  (if giffy-reverse-back
+		      (setq giffy-direction 'backward
+			    giffy-index (1- giffy-end))
+		    (setq giffy-index giffy-start))))
+	    (decf giffy-index (1+ giffy-skip))
+	    (when (< giffy-index giffy-start)
+	      (setq giffy-direction 'forward
+		    giffy-index (1+ giffy-start))))
+	  (let ((delay (- (float-time) giffy-timestamp)))
+	    (setq giffy-timestamp (float-time))
+	    (run-at-time (max 0.001 (- (/ giffy-animation-delay 1000) delay))
+			 nil
+			 (lambda ()
+			   (giffy-display buffer)))))))))
 
 (defun giffy-pause ()
   "Toggle whether the animation is paused."
   (interactive)
   (setq giffy-paused (not giffy-paused))
   (unless giffy-paused
-    (giffy-display)))
+    (giffy-display (current-buffer))))
 
 (defun giffy-adjust-start-earlier ()
   "Move the start point earlier."
