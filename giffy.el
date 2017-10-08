@@ -38,6 +38,7 @@
 (defvar giffy-direction 'forward)
 (defvar giffy-paused nil)
 (defvar giffy-timer nil)
+(defvar giffy-timestamp nil)
 
 (defun giffy (directory match)
   (interactive "DSource directory: \nsMatching files (regexp): ")
