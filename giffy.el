@@ -122,7 +122,7 @@
 			    giffy-index (1- giffy-end))
 		    (setq giffy-index giffy-start))))
 	    (decf giffy-index (1+ giffy-skip))
-	    (when (< giffy-index giffy-start)
+	    (when (<= giffy-index giffy-start)
 	      (setq giffy-direction 'forward
 		    giffy-index (1+ giffy-start))))
 	  (setq giffy-timestamp (float-time))
@@ -197,6 +197,37 @@
   "Decrease the number of frames are being rateped."
   (interactive)
   (incf giffy-animation-delay))
+
+(defun giffy-write-gif (file width)
+  "Create the animated GIF."
+  (interactive "FGIF file name: \nnRescale to width: ")
+  (let ((files-name (make-temp-file "giffy"))
+	(start giffy-start)
+	(end giffy-end)
+	(skip giffy-skip)
+	(files giffy-file-list)
+	(reverse giffy-reverse-back)
+	(dir default-directory))
+    (with-temp-buffer
+      (loop for index from start upto end by (1+ skip)
+	    do (insert (format "'%s/%s'\n" dir (elt files index))))
+      (when reverse
+	(loop for index from (1- end) downto (1+ start)
+	      by (1+ skip)
+	      do (insert (format "'%s%s'\n" dir (elt files index)))))
+      (write-region (point-min) (point-max) files-name nil 'silent))
+    (call-process "convert" nil (get-buffer-create "*convert*") nil
+		  "-dispose" "none"
+		  ;; Our delay is in ms, but "convert"s is in 100ths
+		  ;; of a second.
+		  "-delay" (format "%d" (/ giffy-animation-delay 10))
+		  (format "@%s" files-name)
+		  "-coalesce"
+		  "-loop" "0"
+		  "-resize" (format "%dx" width)
+		  (format "%s.gif" (or file "giffy")))
+    (delete-file files-name)
+    (message "%s.gif created" file)))
 
 (provide 'giffy)
 
