@@ -32,9 +32,11 @@
 (defvar giffy-start nil)
 (defvar giffy-end nil)
 (defvar giffy-reverse-back nil)
+(defvar giffy-skip 0)
 (defvar giffy-animation nil)
 (defvar giffy-index 0)
 (defvar giffy-direction 'forward)
+(defvar giffy-paused nil)
 
 (defun giffy (directory match)
   (interactive "DSource directory: \nsMatching files (regexp): ")
@@ -59,6 +61,7 @@
     (define-key map "(" 'giffy-decrease-rate)
     (define-key map ")" 'giffy-increase-rate)
     (define-key map "w" 'giffy-write-gif)
+    (define-key map "p" 'giffy-pause)
     map))
 
 (define-derived-mode giffy-mode special-mode "Giffy"
@@ -73,8 +76,100 @@
   (setq-local giffy-animation nil)
   (setq-local giffy-timestamp 0)
   (setq-local giffy-index 0)
+  (setq-local giffy-skip 0)
+  (setq-local giffy-paused nil)
   (setq-local giffy-direction 'forward)
   (setq-local giffy-reverse-back nil))
+
+(defun giffy-display ()
+  (erase-buffer)
+  (insert-image (create-image (expand-file-name
+			       (elt giffy-file-list giffy-index))))
+  (insert "\n\n")
+  (insert "Start: %d  Stop: %d  Skip: %d  Delay: %d  Mode: %s\n"
+	  giffy-start
+	  (- (length giffy-file-list) giffy-end)
+	  giffy-skip
+	  giffy-animation-delay
+	  (if giffy-reverse-back
+	      'fold
+	    'restart))
+  (unless giffy-paused
+    (if (eq giffy-direction 'forward)
+	(progn
+	  (incf giffy-index (1+ giffy-skip))
+	  (when (> giffy-index giffy-end)
+	    (if giffy-reverse-back
+		(setq giffy-direction 'backward
+		      giffy-index (1- giffy-end))
+	      (setq giffy-index giffy-start))))
+      (decf giffy-index (1+ giffy-skip))
+      (when (< giffy-index giffy-start)
+	(setq giffy-direction 'forward
+	      giffy-index (1+ giffy-start))))
+    (let ((delay (- (float-time) giffy-timestamp)))
+      (setq giffy-timestamp (float-time))
+      (run-at-time (max 0.001 (- (/ giffy-delay 1000) delay))
+		   nil giffy-display))))
+
+(defun giffy-pause ()
+  "Toggle whether the animation is paused."
+  (interactive)
+  (setq giffy-paused (not giffy-paused))
+  (unless giffy-paused
+    (giffy-display)))
+
+(defun giffy-adjust-start-earlier ()
+  "Move the start point earlier."
+  (interactive)
+  (decf giffy-start)
+  (when (< giffy-start 0)
+    (setq giffy-start 0)))
+
+(defun giffy-adjust-start-later ()
+  "Move the start point later."
+  (interactive)
+  (incf giffy-start)
+  (when (>= giffy-start giffy-end)
+    (setq giffy-start (1- giffy-end))))
+
+(defun giffy-adjust-end-earlier ()
+  "Move the end point earlier."
+  (interactive)
+  (decf giffy-end)
+  (when (<= giffy-end giffy-start)
+    (setq giffy-end (1+ giffy-start))))
+
+(defun giffy-adjust-end-later ()
+  "Move the end point later."
+  (interactive)
+  (incf giffy-end)
+  (when (>= giffy-end (length giffy-file-list))
+    (setq giffy-end (1- (length giffy-file-list)))))
+
+(defun giffy-decrease-skip ()
+  "Decrease the number of frames are being skipped."
+  (interactive)
+  (decf giffy-skip)
+  (when (< giffy-skip 0)
+    (setq giffy-skip 0)))
+
+(defun giffy-increase-skip ()
+  "Increase the number of frames are being skipped."
+  (interactive)
+  (incf giffy-skip))
+
+(defun giffy-decrease-rate ()
+  "Decrease the number of frames are being rateped."
+  (interactive)
+  (decf giffy-animation-delay)
+  (when (< giffy-animation-delay 0)
+    (setq giffy-animation-delay 0)))
+
+(defun giffy-increase-rate ()
+  "Decrease the number of frames are being rateped."
+  (interactive)
+  (incf giffy-animation-delay))
 
 (provide 'giffy)
 
