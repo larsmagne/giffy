@@ -64,6 +64,7 @@
     (define-key map "(" 'giffy-decrease-rate)
     (define-key map ")" 'giffy-increase-rate)
     (define-key map "w" 'giffy-write-gif)
+    (define-key map "m" 'giffy-toggle-mode)
     (define-key map "p" 'giffy-pause)
     map))
 
@@ -108,8 +109,9 @@
 		 (length giffy-file-list)
 		 giffy-index
 		 at-time))
+	;; Put the point at a nice unobtrusive place.
 	(goto-char (point-min))
-	(end-of-line)
+	(forward-line 1)
 	(unless giffy-paused
 	  (if (eq giffy-direction 'forward)
 	      (progn
@@ -138,6 +140,11 @@
   (when (and (not giffy-paused)
 	     (not giffy-timer))
     (giffy-display (current-buffer))))
+
+(defun giffy-toggle-mode ()
+  "Toggle whether the animation loops back or restarts."
+  (interactive)
+  (setq giffy-reverse-back (not giffy-reverse-back)))
 
 (defun giffy-adjust-start-earlier ()
   "Move the start point earlier."
