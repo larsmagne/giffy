@@ -25,8 +25,6 @@
 
 ;;; Code:
 
-;; (giffy "/var/tmp/screenshots/Witness for the Prosecution/" "anim02")
-
 (require 'cl)
 
 (defvar giffy-animation-delay 40)
@@ -43,7 +41,7 @@
 
 (defun giffy (directory match)
   (interactive "DSource directory: \nsMatching files (regexp): ")
-  (pop-to-buffer (generate-new-buffer match))
+  (switch-to-buffer (generate-new-buffer match))
   (giffy-mode)
   (setq default-directory directory)
   (setq giffy-file-list (directory-files directory nil match)
