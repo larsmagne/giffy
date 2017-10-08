@@ -39,6 +39,7 @@
 (defvar giffy-index 0)
 (defvar giffy-direction 'forward)
 (defvar giffy-paused nil)
+(defvar giffy-timer nil)
 
 (defun giffy (directory match)
   (interactive "DSource directory: \nsMatching files (regexp): ")
@@ -80,27 +81,33 @@
   (setq-local giffy-index 0)
   (setq-local giffy-skip 0)
   (setq-local giffy-paused nil)
+  (setq-local giffy-timer nil)
   (setq-local giffy-direction 'forward)
   (setq-local giffy-reverse-back nil))
 
 (defun giffy-display (buffer)
+  (setq giffy-timer nil)
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
-      (let ((inhibit-read-only t))
+      (let* ((inhibit-read-only t)
+	     (delay (- (float-time) giffy-timestamp))
+	     (at-time (max 0.001 (- (/ giffy-animation-delay 1000.0) delay))))
 	(erase-buffer)
 	(insert-image (create-image (expand-file-name
 				     (elt giffy-file-list giffy-index))))
 	(insert "\n\n")
 	(insert (format
-		 "Start: %d  Stop: %d  Skip: %d  Delay: %d  Mode: %s\nIndex: %d\n"
+		 "Start: %d  Stop: -%d  Skip: %d  Delay: %d  Mode: %s\nLength: %d  Index: %d  Real-Delay: %.5f\n"
 		 giffy-start
-		 (- (length giffy-file-list) giffy-end)
+		 (- (1- (length giffy-file-list)) giffy-end)
 		 giffy-skip
 		 giffy-animation-delay
 		 (if giffy-reverse-back
 		     'fold
 		   'restart)
-		 giffy-index))
+		 (length giffy-file-list)
+		 giffy-index
+		 at-time))
 	(goto-char (point-min))
 	(end-of-line)
 	(unless giffy-paused
@@ -116,18 +123,20 @@
 	    (when (< giffy-index giffy-start)
 	      (setq giffy-direction 'forward
 		    giffy-index (1+ giffy-start))))
-	  (let ((delay (- (float-time) giffy-timestamp)))
-	    (setq giffy-timestamp (float-time))
-	    (run-at-time (max 0.001 (- (/ giffy-animation-delay 1000) delay))
-			 nil
-			 (lambda ()
-			   (giffy-display buffer)))))))))
+	  (setq giffy-timestamp (float-time))
+	  (setq giffy-timer
+		(run-at-time
+		 at-time
+		 nil
+		 (lambda ()
+		   (giffy-display buffer)))))))))
 
 (defun giffy-pause ()
   "Toggle whether the animation is paused."
   (interactive)
   (setq giffy-paused (not giffy-paused))
-  (unless giffy-paused
+  (when (and (not giffy-paused)
+	     (not giffy-timer))
     (giffy-display (current-buffer))))
 
 (defun giffy-adjust-start-earlier ()
