@@ -63,7 +63,7 @@
     (define-key map "(" 'giffy-decrease-rate)
     (define-key map ")" 'giffy-increase-rate)
     (define-key map "w" 'giffy-write-gif)
-    (define-key map "m" 'giffy-toggle-mode)
+    (define-key map "r" 'giffy-toggle-mode)
     (define-key map "p" 'giffy-pause)
     map))
 
@@ -97,7 +97,7 @@
 				     (elt giffy-file-list giffy-index))))
 	(insert "\n\n")
 	(insert (format
-		 "Start: %d  Stop: -%d  Skip: %d  Delay: %d  Mode: %s\nLength: %d  Index: %d  Real-Delay: %.5f\n"
+		 "[zx] Start: %d  [nm] Stop: -%d  [<>] Skip: %d  [()] Delay: %d \n[r]  Mode: %s\nLength: %d  Index: %d  Real-Delay: %.5f\n"
 		 giffy-start
 		 (- (1- (length giffy-file-list)) giffy-end)
 		 giffy-skip
